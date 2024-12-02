@@ -1,42 +1,22 @@
-#———stage1 - jar builder ————-
-
-# Maven image
-
-FROM maven:3.8.3-openjdk-17 AS builder 
-
-# Set working directory
+# Stage 1 - Build the JAR (Java Application Runtime) using Maven
+FROM maven:3.8.3-openjdk-17 AS builder
 
 WORKDIR /app
 
-# Copy source code from local to container
+# Copy only the necessary files to cache dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-COPY . /app
+COPY src ./src
 
-# Build application and skip test cases
-
-#EXPOSE 8080
-
+# Create JAR file
 RUN mvn clean install -DskipTests=true
 
-#ENTRYPOINT ["java", "-jar", "/expenseapp.jar"]
-
-#--------------------------------------
-# Stage 2 - app build
-#--------------------------------------
-
-# Import small size java image
-
+# Stage 2 - Execute JAR File from the above stage
 FROM openjdk:17-alpine
 
-WORKDIR /app 
+WORKDIR /app
 
-# Copy build from stage 1 (builder)
+COPY --from=builder /app/target/*.jar /app/expenseapp.jar
 
-COPY --from=builder /app/target/*.jar /app/target/expenseapp.jar
-
-# Expose application port 
-
-EXPOSE 8080
-
-# Start the application
-ENTRYPOINT ["java", "-jar", "/app/target/expenseapp.jar"]
+CMD ["java", "-jar", "expenseapp.jar"]
